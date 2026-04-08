@@ -1,0 +1,30 @@
+{
+  "name": "claude-socket",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "WebSocket client for connecting web UIs to Claude Code sessions",
+  "main": "index.ts",
+  "types": "index.ts",
+  "exports": {
+    ".": {
+      "import": "./index.ts",
+      "types": "./index.ts"
+    }
+  },
+  "files": [
+    "index.ts"
+  ],
+  "keywords": [
+    "claude",
+    "claude-code",
+    "websocket",
+    "mcp",
+    "ai",
+    "chat"
+  ],
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cunicopia-dev/claude-socket.git"
+  }
+}

@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>claude-socket demo</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0a;
+    --surface: #141414;
+    --border: #262626;
+    --text: #e5e5e5;
+    --text-dim: #737373;
+    --accent: #c084fc;
+    --accent-dim: #7c3aed;
+    --user-bg: #1c1c2e;
+    --assistant-bg: #1a1a1a;
+    --danger: #ef4444;
+    --success: #22c55e;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Header ─────────────────────────────────────── */
+
+  header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  header h1 {
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+
+  #status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--danger);
+    transition: background 0.3s;
+  }
+
+  #status-dot.connected { background: var(--success); }
+
+  #status-text {
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .spacer { flex: 1; }
+
+  #session-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    font-family: monospace;
+  }
+
+  /* ── Messages ───────────────────────────────────── */
+
+  #messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .msg {
+    max-width: 720px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 14px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .msg.user {
+    background: var(--user-bg);
+    align-self: flex-end;
+    border-bottom-right-radius: 2px;
+  }
+
+  .msg.assistant {
+    background: var(--assistant-bg);
+    border: 1px solid var(--border);
+    align-self: flex-start;
+    border-bottom-left-radius: 2px;
+  }
+
+  .msg .meta {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+  }
+
+  /* ── Status bar ─────────────────────────────────── */
+
+  #activity {
+    padding: 4px 16px;
+    font-size: 12px;
+    color: var(--accent);
+    min-height: 24px;
+    flex-shrink: 0;
+  }
+
+  /* ── Permission banner ──────────────────────────── */
+
+  #permission-banner {
+    display: none;
+    padding: 12px 16px;
+    background: #1a1520;
+    border-top: 1px solid var(--accent-dim);
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+
+  #permission-banner.visible { display: block; }
+
+  #permission-banner .perm-header {
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+
+  #permission-banner .perm-detail {
+    color: var(--text-dim);
+    font-family: monospace;
+    font-size: 12px;
+    margin-bottom: 8px;
+    white-space: pre-wrap;
+  }
+
+  #permission-banner .perm-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  #permission-banner button {
+    padding: 4px 16px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    background: var(--surface);
+    color: var(--text);
+  }
+
+  #permission-banner button.allow {
+    background: var(--accent-dim);
+    border-color: var(--accent-dim);
+    color: white;
+  }
+
+  #permission-banner button:hover { opacity: 0.8; }
+
+  /* ── Input ──────────────────────────────────────── */
+
+  #input-bar {
+    display: flex;
+    gap: 8px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  #input {
+    flex: 1;
+    padding: 10px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+    resize: none;
+    min-height: 42px;
+    max-height: 160px;
+  }
+
+  #input:focus { border-color: var(--accent-dim); }
+
+  #send-btn {
+    padding: 0 20px;
+    background: var(--accent-dim);
+    border: none;
+    border-radius: 8px;
+    color: white;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  #send-btn:hover { background: var(--accent); color: #000; }
+  #send-btn:disabled { opacity: 0.3; cursor: default; }
+</style>
+</head>
+<body>
+
+<header>
+  <div id="status-dot"></div>
+  <h1>claude-socket</h1>
+  <span id="status-text">disconnected</span>
+  <div class="spacer"></div>
+  <span id="session-label"></span>
+</header>
+
+<div id="messages"></div>
+
+<div id="activity"></div>
+
+<div id="permission-banner">
+  <div class="perm-header">Permission requested: <span id="perm-tool"></span></div>
+  <div class="perm-detail" id="perm-detail"></div>
+  <div class="perm-actions">
+    <button class="allow" id="perm-allow">Allow</button>
+    <button id="perm-deny">Deny</button>
+  </div>
+</div>
+
+<div id="input-bar">
+  <textarea id="input" rows="1" placeholder="Send a message..." autofocus></textarea>
+  <button id="send-btn" disabled>Send</button>
+</div>
+
+<script type="module">
+  // ── Inline ClaudeSocket client (no build step needed) ──────────────
+
+  class ClaudeSocket {
+    constructor(url, opts = {}) {
+      this.url = url
+      this.session = opts.session ?? 'default'
+      this.user = opts.user ?? 'user'
+      this.shouldReconnect = opts.reconnect ?? true
+      this.reconnectDelay = opts.reconnectDelay ?? 1000
+      this.maxReconnectDelay = opts.maxReconnectDelay ?? 30000
+      this.currentDelay = this.reconnectDelay
+      this.ws = null
+      this.reconnectTimer = null
+      this.listeners = new Map()
+      this._connected = false
+    }
+
+    get connected() { return this._connected }
+
+    connect() {
+      if (this.ws) return
+      const sep = this.url.includes('?') ? '&' : '?'
+      this.ws = new WebSocket(`${this.url}${sep}session=${encodeURIComponent(this.session)}`)
+
+      this.ws.onopen = () => {
+        this._connected = true
+        this.currentDelay = this.reconnectDelay
+        this.emit('connected')
+      }
+
+      this.ws.onmessage = (e) => {
+        let msg
+        try { msg = JSON.parse(e.data) } catch { return }
+        this.emit(msg.type, msg)
+        this.emit('message', msg)
+      }
+
+      this.ws.onclose = () => {
+        this._connected = false
+        this.ws = null
+        this.emit('disconnected')
+        if (this.shouldReconnect) {
+          this.reconnectTimer = setTimeout(() => {
+            this.reconnectTimer = null
+            this.currentDelay = Math.min(this.currentDelay * 2, this.maxReconnectDelay)
+            this.connect()
+          }, this.currentDelay)
+        }
+      }
+
+      this.ws.onerror = () => {}
+    }
+
+    send(content) {
+      if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return
+      this.ws.send(JSON.stringify({
+        type: 'message',
+        session_id: this.session,
+        content,
+        user: this.user,
+        ts: new Date().toISOString(),
+      }))
+    }
+
+    respondToPermission(requestId, allowed) {
+      if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return
+      this.ws.send(JSON.stringify({
+        type: 'permission_response',
+        request_id: requestId,
+        allowed,
+      }))
+    }
+
+    disconnect() {
+      this.shouldReconnect = false
+      if (this.reconnectTimer) clearTimeout(this.reconnectTimer)
+      this.ws?.close()
+      this.ws = null
+      this._connected = false
+    }
+
+    on(event, cb) {
+      if (!this.listeners.has(event)) this.listeners.set(event, new Set())
+      this.listeners.get(event).add(cb)
+      return () => this.off(event, cb)
+    }
+
+    off(event, cb) { this.listeners.get(event)?.delete(cb) }
+
+    emit(event, ...args) {
+      const cbs = this.listeners.get(event)
+      if (!cbs) return
+      for (const cb of cbs) { try { cb(...args) } catch {} }
+    }
+  }
+
+  // ── App ────────────────────────────────────────────────────────────
+
+  const params = new URLSearchParams(window.location.search)
+  const session = params.get('session') ?? 'default'
+  const port = params.get('port') ?? '3100'
+  const host = params.get('host') ?? 'localhost'
+
+  const socket = new ClaudeSocket(`ws://${host}:${port}`, { session, user: 'user' })
+
+  const $messages = document.getElementById('messages')
+  const $input = document.getElementById('input')
+  const $sendBtn = document.getElementById('send-btn')
+  const $statusDot = document.getElementById('status-dot')
+  const $statusText = document.getElementById('status-text')
+  const $activity = document.getElementById('activity')
+  const $sessionLabel = document.getElementById('session-label')
+  const $permBanner = document.getElementById('permission-banner')
+  const $permTool = document.getElementById('perm-tool')
+  const $permDetail = document.getElementById('perm-detail')
+  const $permAllow = document.getElementById('perm-allow')
+  const $permDeny = document.getElementById('perm-deny')
+
+  $sessionLabel.textContent = `session: ${session}`
+  let pendingPermRequestId = null
+
+  function addMessage(role, content) {
+    const el = document.createElement('div')
+    el.className = `msg ${role}`
+    const meta = document.createElement('div')
+    meta.className = 'meta'
+    meta.textContent = role === 'user' ? 'You' : 'Claude'
+    const body = document.createElement('div')
+    body.textContent = content
+    el.appendChild(meta)
+    el.appendChild(body)
+    $messages.appendChild(el)
+    $messages.scrollTop = $messages.scrollHeight
+  }
+
+  function sendMessage() {
+    const text = $input.value.trim()
+    if (!text || !socket.connected) return
+    addMessage('user', text)
+    socket.send(text)
+    $input.value = ''
+    $input.style.height = 'auto'
+    $activity.textContent = 'Waiting for response...'
+  }
+
+  // ── Socket events ──────────────────────────────────────────────────
+
+  socket.on('connected', () => {
+    $statusDot.classList.add('connected')
+    $statusText.textContent = 'connected'
+    $sendBtn.disabled = false
+  })
+
+  socket.on('disconnected', () => {
+    $statusDot.classList.remove('connected')
+    $statusText.textContent = 'disconnected'
+    $sendBtn.disabled = true
+    $activity.textContent = ''
+  })
+
+  socket.on('reply', (msg) => {
+    addMessage('assistant', msg.content)
+    $activity.textContent = ''
+  })
+
+  socket.on('status', (msg) => {
+    if (msg.status === 'thinking') {
+      $activity.textContent = 'Thinking...'
+    } else if (msg.status === 'tool_use') {
+      $activity.textContent = msg.detail ? `Using tool: ${msg.detail}` : 'Using a tool...'
+    } else {
+      $activity.textContent = ''
+    }
+  })
+
+  socket.on('error', (msg) => {
+    addMessage('assistant', `Error: ${msg.message}`)
+    $activity.textContent = ''
+  })
+
+  socket.on('permission_request', (msg) => {
+    pendingPermRequestId = msg.request_id
+    $permTool.textContent = msg.tool_name
+    $permDetail.textContent = `${msg.description}\n\n${msg.input_preview}`
+    $permBanner.classList.add('visible')
+  })
+
+  $permAllow.addEventListener('click', () => {
+    if (pendingPermRequestId) {
+      socket.respondToPermission(pendingPermRequestId, true)
+      pendingPermRequestId = null
+      $permBanner.classList.remove('visible')
+    }
+  })
+
+  $permDeny.addEventListener('click', () => {
+    if (pendingPermRequestId) {
+      socket.respondToPermission(pendingPermRequestId, false)
+      pendingPermRequestId = null
+      $permBanner.classList.remove('visible')
+    }
+  })
+
+  // ── Input handling ─────────────────────────────────────────────────
+
+  $sendBtn.addEventListener('click', sendMessage)
+
+  $input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      sendMessage()
+    }
+  })
+
+  // Auto-resize textarea.
+  $input.addEventListener('input', () => {
+    $input.style.height = 'auto'
+    $input.style.height = Math.min($input.scrollHeight, 160) + 'px'
+  })
+
+  // ── Connect ────────────────────────────────────────────────────────
+
+  socket.connect()
+</script>
+
+</body>
+</html>
