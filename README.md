@@ -60,54 +60,49 @@ Claude Code's channel system lets external sources inject messages into a runnin
 
 ## Quick Start
 
-### Install as a Plugin (recommended)
-
-claude-socket is a Claude Code plugin. Add it as a marketplace, install, and enable:
+### 1. Install the plugin
 
 ```bash
 claude plugin marketplace add cunicopia-dev/claude-socket
 claude plugin install claude-socket
 ```
 
-Then start Claude Code — the plugin loads automatically and the WebSocket server starts on port 3100.
+### 2. Start Claude Code with the channel
 
-### Use with `--plugin-dir` (no install)
+claude-socket uses Claude Code's [channel system](https://docs.anthropic.com/en/docs/claude-code) to receive messages. Start a session with the channel loaded:
 
-If you prefer not to install, point Claude Code at the plugin directory directly:
+```bash
+claude --channels plugin:claude-socket@claude-socket
+```
+
+The WebSocket server starts automatically on port 3100. Connect a browser, send a message, and Claude Code sees it in the session.
+
+To continue an existing session:
+
+```bash
+claude -c --channels plugin:claude-socket@claude-socket
+```
+
+### 3. Try the example
+
+Open `examples/basic/index.html` in your browser. Type a message. Claude replies through the WebSocket.
+
+### Alternative: `--plugin-dir` (no install)
+
+If you don't want to install via the marketplace, clone the repo and point Claude Code at it directly:
 
 ```bash
 git clone https://github.com/cunicopia-dev/claude-socket.git
-claude --plugin-dir /path/to/claude-socket/plugin
+claude --channels plugin:claude-socket@claude-socket --plugin-dir /path/to/claude-socket/plugin
 ```
 
-### Use with `--mcp-config` (manual)
+### Alternative: `--mcp-config` (manual)
 
-You can also load it as a raw MCP server if you want full control over the config:
+Load it as a raw MCP server for full control over the config:
 
 ```bash
 claude --mcp-config '{"mcpServers":{"claude-socket":{"command":"bun","args":["run","/path/to/claude-socket/plugin/server.ts"],"env":{"CLAUDE_SOCKET_PORT":"3100"}}}}'
 ```
-
-Or add it to `~/.claude/settings.json`:
-
-```json
-{
-  "mcpServers": {
-    "claude-socket": {
-      "command": "bun",
-      "args": ["run", "/path/to/claude-socket/plugin/server.ts"],
-      "env": {
-        "CLAUDE_SOCKET_PORT": "3100",
-        "CLAUDE_SOCKET_HOST": "127.0.0.1"
-      }
-    }
-  }
-}
-```
-
-### Try the Example
-
-Open `examples/basic/index.html` in your browser. Type a message. Claude Code sees it and replies through the WebSocket.
 
 ### Run the Tests
 
