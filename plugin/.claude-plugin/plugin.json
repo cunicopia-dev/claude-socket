@@ -1,0 +1,9 @@
+{
+  "name": "claude-socket",
+  "version": "1.0.0",
+  "description": "WebSocket bridge for Claude Code — connect any app to a live session",
+  "author": {
+    "name": "cunicopia-dev",
+    "url": "https://github.com/cunicopia-dev"
+  }
+}

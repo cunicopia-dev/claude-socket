@@ -60,21 +60,36 @@ Claude Code's channel system lets external sources inject messages into a runnin
 
 ## Quick Start
 
-### 1. Clone and install
+### Install as a Plugin (recommended)
+
+claude-socket is a Claude Code plugin. Add it as a marketplace, install, and enable:
+
+```bash
+claude plugin marketplace add github:cunicopia-dev/claude-socket
+claude plugin install claude-socket
+claude plugin enable claude-socket
+```
+
+Then start Claude Code — the plugin loads automatically and the WebSocket server starts on port 3100.
+
+### Use with `--plugin-dir` (no install)
+
+If you prefer not to install, point Claude Code at the plugin directory directly:
 
 ```bash
 git clone https://github.com/cunicopia-dev/claude-socket.git
-cd claude-socket/plugin
-bun install
+claude --plugin-dir /path/to/claude-socket/plugin
 ```
 
-### 2. Run Claude Code with the plugin
+### Use with `--mcp-config` (manual)
+
+You can also load it as a raw MCP server if you want full control over the config:
 
 ```bash
 claude --mcp-config '{"mcpServers":{"claude-socket":{"command":"bun","args":["run","/path/to/claude-socket/plugin/server.ts"],"env":{"CLAUDE_SOCKET_PORT":"3100"}}}}'
 ```
 
-Or add it to your Claude Code settings (`~/.claude/settings.json`):
+Or add it to `~/.claude/settings.json`:
 
 ```json
 {
@@ -91,14 +106,15 @@ Or add it to your Claude Code settings (`~/.claude/settings.json`):
 }
 ```
 
-### 3. Open the example
+### Try the Example
 
 Open `examples/basic/index.html` in your browser. Type a message. Claude Code sees it and replies through the WebSocket.
 
-### 4. Run the tests
+### Run the Tests
 
 ```bash
 cd plugin
+bun install
 bun test.ts
 ```
 

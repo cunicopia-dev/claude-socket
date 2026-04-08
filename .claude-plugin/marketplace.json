@@ -1,0 +1,14 @@
+{
+  "name": "claude-socket",
+  "owner": {
+    "name": "cunicopia-dev"
+  },
+  "plugins": [
+    {
+      "name": "claude-socket",
+      "description": "WebSocket bridge for Claude Code — connect any app to a live session",
+      "source": "./plugin",
+      "category": "channels"
+    }
+  ]
+}
