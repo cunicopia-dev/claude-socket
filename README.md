@@ -65,9 +65,8 @@ Claude Code's channel system lets external sources inject messages into a runnin
 claude-socket is a Claude Code plugin. Add it as a marketplace, install, and enable:
 
 ```bash
-claude plugin marketplace add github:cunicopia-dev/claude-socket
+claude plugin marketplace add cunicopia-dev/claude-socket
 claude plugin install claude-socket
-claude plugin enable claude-socket
 ```
 
 Then start Claude Code — the plugin loads automatically and the WebSocket server starts on port 3100.
