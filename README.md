@@ -87,13 +87,14 @@ claude -c --channels plugin:claude-socket@claude-socket
 
 Open `examples/basic/index.html` in your browser. Type a message. Claude replies through the WebSocket.
 
-### Alternative: `--plugin-dir` (no install)
+### Alternative: `--plugin-dir` (local development)
 
-If you don't want to install via the marketplace, clone the repo and point Claude Code at it directly:
+If you don't want to install via the marketplace, clone the repo and point Claude Code at it directly. Local plugins require `--dangerously-load-development-channels` instead of `--channels` since they aren't on the approved channel allowlist:
 
 ```bash
 git clone https://github.com/cunicopia-dev/claude-socket.git
-claude --channels plugin:claude-socket@claude-socket --plugin-dir /path/to/claude-socket/plugin
+claude --plugin-dir /path/to/claude-socket/plugin \
+  --dangerously-load-development-channels plugin:claude-socket@localhost
 ```
 
 ### Alternative: `--mcp-config` (manual)
