@@ -25,6 +25,8 @@ import {
 import { z } from 'zod'
 import { randomBytes } from 'crypto'
 import { appendFileSync } from 'fs'
+import { tmpdir } from 'os'
+import { join } from 'path'
 
 // ── Config ──────────────────────────────────────────────────────────────
 
@@ -35,7 +37,7 @@ const SESSION_TTL_MS = 5 * 60 * 1000 // clean up 5 min after last client leaves
 
 // ── Logging ─────────────────────────────────────────────────────────────
 
-const LOG_FILE = '/tmp/claude-socket.log'
+const LOG_FILE = join(tmpdir(), 'claude-socket.log')
 
 function log(msg: string): void {
   const ts = new Date().toISOString()
@@ -124,7 +126,7 @@ function broadcast(sessionId: string, msg: OutboundMessage): void {
   if (!session) return
   const payload = JSON.stringify(msg)
   for (const ws of session.clients) {
-    try { ws.send(payload) } catch {}
+    try { ws.send(payload) } catch (err) { log(`broadcast send failed: ${err}`) }
   }
 }
 
@@ -133,7 +135,7 @@ function broadcastAll(msg: OutboundMessage & { session_id: string }): void {
   for (const [sid, session] of sessions) {
     const payload = JSON.stringify({ ...msg, session_id: sid })
     for (const ws of session.clients) {
-      try { ws.send(payload) } catch {}
+      try { ws.send(payload) } catch (err) { log(`broadcast send failed: ${err}`) }
     }
   }
 }
@@ -257,14 +259,31 @@ mcp.setRequestHandler(ListToolsRequestSchema, async () => ({
   ],
 }))
 
+// ── Tool Arg Schemas ───────────────────────────────────────────────────
+
+const ReplyArgsSchema = z.object({
+  chat_id: z.string(),
+  text: z.string(),
+})
+
+const StatusArgsSchema = z.object({
+  chat_id: z.string(),
+  status: z.string(),
+  detail: z.string().optional(),
+})
+
+const FetchMessagesArgsSchema = z.object({
+  session_id: z.string(),
+  limit: z.number().optional(),
+})
+
 mcp.setRequestHandler(CallToolRequestSchema, async (req) => {
-  const args = (req.params.arguments ?? {}) as Record<string, unknown>
+  const args = req.params.arguments ?? {}
 
   try {
     switch (req.params.name) {
       case 'reply': {
-        const chatId = args.chat_id as string
-        const text = args.text as string
+        const { chat_id: chatId, text } = ReplyArgsSchema.parse(args)
         const messageId = randomBytes(8).toString('hex')
         const ts = new Date().toISOString()
 
@@ -285,9 +304,7 @@ mcp.setRequestHandler(CallToolRequestSchema, async (req) => {
       }
 
       case 'status': {
-        const chatId = args.chat_id as string
-        const status = args.status as string
-        const detail = args.detail as string | undefined
+        const { chat_id: chatId, status, detail } = StatusArgsSchema.parse(args)
 
         broadcast(chatId, {
           type: 'status',
@@ -300,8 +317,8 @@ mcp.setRequestHandler(CallToolRequestSchema, async (req) => {
       }
 
       case 'fetch_messages': {
-        const sessionId = args.session_id as string
-        const limit = Math.min(Math.max((args.limit as number) ?? 50, 1), MAX_MESSAGES)
+        const { session_id: sessionId, limit: rawLimit } = FetchMessagesArgsSchema.parse(args)
+        const limit = Math.min(Math.max(rawLimit ?? 50, 1), MAX_MESSAGES)
         const session = sessions.get(sessionId)
         const messages = session ? session.messages.slice(-limit) : []
 
@@ -339,7 +356,7 @@ function handleWsMessage(ws: WsClient, raw: string | Buffer): void {
   } catch {
     try {
       ws.send(JSON.stringify({ type: 'error', session_id: '', message: 'invalid JSON' }))
-    } catch {}
+    } catch (err) { log(`failed to send error response: ${err}`) }
     return
   }
 
@@ -383,7 +400,7 @@ function handleWsMessage(ws: WsClient, raw: string | Buffer): void {
           session_id: data.session_id,
           messages,
         }))
-      } catch {}
+      } catch (err) { log(`failed to send history: ${err}`) }
       break
     }
 
@@ -410,7 +427,7 @@ function handleWsMessage(ws: WsClient, raw: string | Buffer): void {
           session_id: (data as Record<string, unknown>).session_id ?? '',
           message: `unknown message type: ${(data as Record<string, unknown>).type}`,
         }))
-      } catch {}
+      } catch (err) { log(`failed to send error response: ${err}`) }
     }
   }
 }
