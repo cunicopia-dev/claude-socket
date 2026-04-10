@@ -111,7 +111,7 @@ export class ClaudeSocket {
   private currentDelay: number
   private ws: WebSocket | null = null
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null
-  private listeners = new Map<string, Set<Function>>()
+  private listeners = new Map<string, Set<(...args: unknown[]) => void>>()
   private _connected = false
   private _connecting = false
 
@@ -249,7 +249,7 @@ export class ClaudeSocket {
     const callbacks = this.listeners.get(event)
     if (!callbacks) return
     for (const cb of callbacks) {
-      try { cb(...args) } catch {}
+      try { cb(...args) } catch (err) { console.error(`claude-socket: listener error:`, err) }
     }
   }
 
